@@ -1,0 +1,15 @@
+{
+    "manifest_version": 2,
+    "name": "Random URL Rotator",
+    "version": "1.0",
+    "description": "Switches the current tab to a random URL every 60-90 seconds.",
+    "permissions": ["storage", "tabs"],
+    "background": {
+      "scripts": ["background.js"],
+      "persistent": true
+    },
+    "browser_action": {
+      "default_popup": "popup.html",
+      "default_title": "Random URL Rotator"
+    }
+  }

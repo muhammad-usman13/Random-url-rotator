@@ -4,8 +4,19 @@ const startButton = document.getElementById('start');
 const stopButton = document.getElementById('stop');
 const statusParagraph = document.getElementById('status');
 
+// Cross-browser message sending
+function sendMessage(message) {
+  if (typeof browser !== 'undefined') {
+    return browser.runtime.sendMessage(message);
+  } else {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(message, resolve);
+    });
+  }
+}
+
 // Load current state when popup opens
-browser.runtime.sendMessage({ type: "getState" }).then(response => {
+sendMessage({ type: "getState" }).then(response => {
   if (response) {
     textarea.value = response.urls.join('\n');
     if (response.isRotating) {
@@ -26,7 +37,7 @@ browser.runtime.sendMessage({ type: "getState" }).then(response => {
 startButton.addEventListener('click', () => {
   const urls = textarea.value.split('\n').map(url => url.trim()).filter(url => url !== '');
   if (urls.length > 0) {
-    browser.runtime.sendMessage({ type: "start", urls }).then(() => {
+    sendMessage({ type: "start", urls }).then(() => {
       textarea.disabled = true;
       startButton.disabled = true;
       stopButton.disabled = false;
@@ -39,7 +50,7 @@ startButton.addEventListener('click', () => {
 
 // Stop rotation
 stopButton.addEventListener('click', () => {
-  browser.runtime.sendMessage({ type: "stop" }).then(() => {
+  sendMessage({ type: "stop" }).then(() => {
     textarea.disabled = false;
     startButton.disabled = false;
     stopButton.disabled = true;

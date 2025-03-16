@@ -17,28 +17,41 @@ function sendMessage(message) {
   }
 }
 
-// Load current state when popup opens
-sendMessage({ type: "getState" }).then(response => {
-  if (response) {
-    textarea.value = response.urls.join('\n');
-    minTimeInput.value = response.minTime || 60;
-    maxTimeInput.value = response.maxTime || 90;
-    
-    if (response.isRotating) {
-      textarea.disabled = true;
-      startButton.disabled = true;
-      stopButton.disabled = false;
-      statusParagraph.textContent = "Rotation is active";
-    } else {
-      textarea.disabled = false;
-      startButton.disabled = false;
-      stopButton.disabled = true;
-      statusParagraph.textContent = "Rotation is stopped";
-    }
+// Cross-browser tabs query
+function getCurrentTab() {
+  if (typeof browser !== 'undefined') {
+    return browser.tabs.query({ active: true, currentWindow: true });
+  }
+  return new Promise(resolve => chrome.tabs.query({ active: true, currentWindow: true }, resolve));
+}
+
+// Load current state for this specific tab when popup opens
+getCurrentTab().then(tabs => {
+  if (tabs.length > 0) {
+    const tabId = tabs[0].id;
+    sendMessage({ type: "getState", tabId }).then(response => {
+      if (response) {
+        textarea.value = response.urls.join('\n');
+        minTimeInput.value = response.minTime || 60;
+        maxTimeInput.value = response.maxTime || 90;
+        
+        if (response.isRotating) {
+          textarea.disabled = true;
+          startButton.disabled = true;
+          stopButton.disabled = false;
+          statusParagraph.textContent = "Rotation is active";
+        } else {
+          textarea.disabled = false;
+          startButton.disabled = false;
+          stopButton.disabled = true;
+          statusParagraph.textContent = "Rotation is stopped";
+        }
+      }
+    });
   }
 });
 
-// Start rotation
+// Start rotation for current tab
 startButton.addEventListener('click', () => {
   const urls = textarea.value.split('\n').map(url => url.trim()).filter(url => url !== '');
   const minTime = parseInt(minTimeInput.value);
@@ -69,20 +82,35 @@ startButton.addEventListener('click', () => {
     return;
   }
 
-  sendMessage({ type: "start", urls, minTime, maxTime }).then(() => {
-    textarea.disabled = true;
-    startButton.disabled = true;
-    stopButton.disabled = false;
-    statusParagraph.textContent = "Rotation is active";
+  getCurrentTab().then(tabs => {
+    if (tabs.length > 0) {
+      const tabId = tabs[0].id;
+      sendMessage({ 
+        type: "start", 
+        urls, 
+        minTime, 
+        maxTime,
+        tabId 
+      }).then(() => {
+        textarea.disabled = true;
+        startButton.disabled = true;
+        stopButton.disabled = false;
+        statusParagraph.textContent = "Rotation is active";
+      });
+    }
   });
 });
 
-// Stop rotation
+// Stop rotation for current tab
 stopButton.addEventListener('click', () => {
-  sendMessage({ type: "stop" }).then(() => {
-    textarea.disabled = false;
-    startButton.disabled = false;
-    stopButton.disabled = true;
-    statusParagraph.textContent = "Rotation is stopped";
+  getCurrentTab().then(tabs => {
+    if (tabs.length > 0) {
+      sendMessage({ type: "stop", tabId: tabs[0].id }).then(() => {
+        textarea.disabled = false;
+        startButton.disabled = false;
+        stopButton.disabled = true;
+        statusParagraph.textContent = "Rotation is stopped";
+      });
+    }
   });
 });

@@ -46,60 +46,71 @@ let minTime = 60;
 let maxTime = 90;
 let timeoutId = null;
 
-// Load URLs and time range from storage on startup
-browserAPI.storage.local.get(['urls', 'minTime', 'maxTime']).then(result => {
-  if (result.urls) urls = result.urls;
-  if (result.minTime) minTime = result.minTime;
-  if (result.maxTime) maxTime = result.maxTime;
-});
+// State storage for all tabs
+const activeRotations = {};
 
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "getState") {
-    sendResponse({ isRotating, urls, minTime, maxTime });
-  } else if (message.type === "start") {
-    if (!isRotating) {
-      browserAPI.storage.local.set({ 
-        urls: message.urls,
-        minTime: message.minTime,
-        maxTime: message.maxTime
+  const tabId = message.tabId || sender.tab?.id;
+
+  switch (message.type) {
+    case "getState":
+      sendResponse(activeRotations[tabId] || {
+        isRotating: false,
+        urls: [],
+        minTime: 60,
+        maxTime: 90
       });
-      urls = message.urls;
-      minTime = message.minTime;
-      maxTime = message.maxTime;
-      browserAPI.tabs.query({ active: true, currentWindow: true }).then(tabs => {
-        if (tabs.length > 0) {
-          rotatingTabId = tabs[0].id;
-          isRotating = true;
-          rotateTab();
-        }
-      });
-    }
-  } else if (message.type === "stop") {
-    stopRotation();
+      break;
+
+    case "start":
+      if (!activeRotations[tabId]) {
+        activeRotations[tabId] = {
+          isRotating: true,
+          urls: message.urls,
+          minTime: message.minTime,
+          maxTime: message.maxTime,
+          timeoutId: null
+        };
+        
+        startRotation(tabId);
+      }
+      break;
+
+    case "stop":
+      if (activeRotations[tabId]) {
+        stopRotation(tabId);
+      }
+      break;
   }
 });
 
-function rotateTab() {
-  if (!isRotating || !rotatingTabId || urls.length === 0) return;
+function startRotation(tabId) {
+  if (!activeRotations[tabId] || !activeRotations[tabId].isRotating) return;
 
-  const randomIndex = Math.floor(Math.random() * urls.length);
-  const randomUrl = urls[randomIndex];
-  browserAPI.tabs.update(rotatingTabId, { url: randomUrl }).then(() => {
-    const seconds = Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
-    timeoutId = setTimeout(rotateTab, seconds * 1000);
-  }).catch(stopRotation);
+  const state = activeRotations[tabId];
+  const randomIndex = Math.floor(Math.random() * state.urls.length);
+  const randomUrl = state.urls[randomIndex];
+
+  browserAPI.tabs.update(tabId, { url: randomUrl }).then(() => {
+    const min = state.minTime;
+    const max = state.maxTime;
+    const delay = (Math.floor(Math.random() * (max - min + 1)) + min) * 1000;
+    
+    state.timeoutId = setTimeout(() => startRotation(tabId), delay);
+  }).catch(() => stopRotation(tabId));
 }
 
-function stopRotation() {
-  if (isRotating) {
-    clearTimeout(timeoutId);
-    timeoutId = null;
-    isRotating = false;
-    rotatingTabId = null;
+function stopRotation(tabId) {
+  if (activeRotations[tabId]) {
+    clearTimeout(activeRotations[tabId].timeoutId);
+    delete activeRotations[tabId];
   }
 }
 
-browserAPI.tabs.onRemoved.addListener((tabId) => {
-  if (tabId === rotatingTabId) stopRotation();
+// Clean up when tabs close
+browserAPI.tabs.onRemoved.addListener((closedTabId) => {
+  if (activeRotations[closedTabId]) {
+    stopRotation(closedTabId);
+  }
 });

@@ -42,23 +42,31 @@ const browserAPI = {
 let isRotating = false;
 let rotatingTabId = null;
 let urls = [];
+let minTime = 60;
+let maxTime = 90;
 let timeoutId = null;
 
-// Load URLs from storage on startup
-browserAPI.storage.local.get('urls').then(result => {
-  if (result.urls) {
-    urls = result.urls;
-  }
+// Load URLs and time range from storage on startup
+browserAPI.storage.local.get(['urls', 'minTime', 'maxTime']).then(result => {
+  if (result.urls) urls = result.urls;
+  if (result.minTime) minTime = result.minTime;
+  if (result.maxTime) maxTime = result.maxTime;
 });
 
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "getState") {
-    sendResponse({ isRotating, urls });
+    sendResponse({ isRotating, urls, minTime, maxTime });
   } else if (message.type === "start") {
     if (!isRotating) {
-      browserAPI.storage.local.set({ urls: message.urls });
+      browserAPI.storage.local.set({ 
+        urls: message.urls,
+        minTime: message.minTime,
+        maxTime: message.maxTime
+      });
       urls = message.urls;
+      minTime = message.minTime;
+      maxTime = message.maxTime;
       browserAPI.tabs.query({ active: true, currentWindow: true }).then(tabs => {
         if (tabs.length > 0) {
           rotatingTabId = tabs[0].id;
@@ -78,7 +86,7 @@ function rotateTab() {
   const randomIndex = Math.floor(Math.random() * urls.length);
   const randomUrl = urls[randomIndex];
   browserAPI.tabs.update(rotatingTabId, { url: randomUrl }).then(() => {
-    const seconds = Math.floor(Math.random() * 31) + 60;
+    const seconds = Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
     timeoutId = setTimeout(rotateTab, seconds * 1000);
   }).catch(stopRotation);
 }

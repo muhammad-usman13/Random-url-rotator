@@ -5,17 +5,30 @@
   <title>Random URL Rotator</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 10px; width: 300px; }
-    textarea { width: 100%; height: 100px; box-sizing: border-box; }
+    textarea { width: 100%; height: 100px; box-sizing: border-box; margin-bottom: 10px; }
     button { margin-top: 10px; width: 48%; }
     #start { float: left; }
     #stop { float: right; }
     p { margin: 5px 0; }
+    .time-range { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .time-input { width: 45%; }
+    .time-input input { width: 100%; box-sizing: border-box; }
   </style>
 </head>
 <body>
   <h2>Random URL Rotator</h2>
   <p>Enter URLs (one per line):</p>
   <textarea id="urls"></textarea>
+  <div class="time-range">
+    <div class="time-input">
+      <label>Min seconds:</label>
+      <input type="number" id="minTime" min="1" value="60">
+    </div>
+    <div class="time-input">
+      <label>Max seconds:</label>
+      <input type="number" id="maxTime" min="1" value="90">
+    </div>
+  </div>
   <button id="start">Start Rotation</button>
   <button id="stop" disabled>Stop Rotation</button>
   <p id="status"></p>

@@ -1,55 +1,5 @@
-// Cross-browser API helper
-const browserAPI = {
-  tabs: {
-    query: (query) => {
-      if (typeof browser !== 'undefined') {
-        return browser.tabs.query(query);
-      }
-      return new Promise(resolve => chrome.tabs.query(query, resolve));
-    },
-    update: (tabId, updateProperties) => {
-      if (typeof browser !== 'undefined') {
-        return browser.tabs.update(tabId, updateProperties);
-      }
-      return new Promise(resolve => chrome.tabs.update(tabId, updateProperties, resolve));
-    },
-    onRemoved: {
-      addListener: (callback) => {
-        const api = typeof browser !== 'undefined' ? browser.tabs.onRemoved : chrome.tabs.onRemoved;
-        api.addListener(callback);
-      }
-    }
-  },
-  storage: {
-    local: {
-      set: (items) => {
-        if (typeof browser !== 'undefined') {
-          return browser.storage.local.set(items);
-        }
-        return new Promise(resolve => chrome.storage.local.set(items, resolve));
-      },
-      get: (keys) => {
-        if (typeof browser !== 'undefined') {
-          return browser.storage.local.get(keys);
-        }
-        return new Promise(resolve => chrome.storage.local.get(keys, resolve));
-      }
-    }
-  }
-};
-
-// State variables
-let isRotating = false;
-let rotatingTabId = null;
-let urls = [];
-let minTime = 60;
-let maxTime = 90;
-let timeoutId = null;
-
-// State storage for all tabs
 const activeRotations = {};
 
-// Handle messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const tabId = message.tabId || sender.tab?.id;
 
@@ -72,17 +22,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           maxTime: message.maxTime,
           timeoutId: null
         };
-        
         startRotation(tabId);
       }
       break;
 
     case "stop":
       if (activeRotations[tabId]) {
-        stopRotation(tabId);
+        clearTimeout(activeRotations[tabId].timeoutId);
+        delete activeRotations[tabId];
       }
       break;
   }
+
+  return true; // Keep the message channel open for async response
 });
 
 function startRotation(tabId) {
@@ -92,25 +44,15 @@ function startRotation(tabId) {
   const randomIndex = Math.floor(Math.random() * state.urls.length);
   const randomUrl = state.urls[randomIndex];
 
-  browserAPI.tabs.update(tabId, { url: randomUrl }).then(() => {
-    const min = state.minTime;
-    const max = state.maxTime;
-    const delay = (Math.floor(Math.random() * (max - min + 1)) + min) * 1000;
-    
-    state.timeoutId = setTimeout(() => startRotation(tabId), delay);
-  }).catch(() => stopRotation(tabId));
+  chrome.tabs.update(tabId, { url: randomUrl }, () => {
+    const delay = (Math.floor(Math.random() * (state.maxTime - state.minTime + 1)) + state.minTime) * 1000;
+    activeRotations[tabId].timeoutId = setTimeout(() => startRotation(tabId), delay);
+  });
 }
 
-function stopRotation(tabId) {
-  if (activeRotations[tabId]) {
-    clearTimeout(activeRotations[tabId].timeoutId);
-    delete activeRotations[tabId];
-  }
-}
-
-// Clean up when tabs close
-browserAPI.tabs.onRemoved.addListener((closedTabId) => {
+chrome.tabs.onRemoved.addListener((closedTabId) => {
   if (activeRotations[closedTabId]) {
-    stopRotation(closedTabId);
+    clearTimeout(activeRotations[closedTabId].timeoutId);
+    delete activeRotations[closedTabId];
   }
 });

@@ -1,17 +1,65 @@
+// Cross-browser API helper
+const browserAPI = {
+  tabs: {
+    query: (query) => {
+      if (typeof browser !== 'undefined') {
+        return browser.tabs.query(query);
+      }
+      return new Promise(resolve => chrome.tabs.query(query, resolve));
+    },
+    update: (tabId, updateProperties) => {
+      if (typeof browser !== 'undefined') {
+        return browser.tabs.update(tabId, updateProperties);
+      }
+      return new Promise(resolve => chrome.tabs.update(tabId, updateProperties, resolve));
+    },
+    onRemoved: {
+      addListener: (callback) => {
+        const api = typeof browser !== 'undefined' ? browser.tabs.onRemoved : chrome.tabs.onRemoved;
+        api.addListener(callback);
+      }
+    }
+  },
+  storage: {
+    local: {
+      set: (items) => {
+        if (typeof browser !== 'undefined') {
+          return browser.storage.local.set(items);
+        }
+        return new Promise(resolve => chrome.storage.local.set(items, resolve));
+      },
+      get: (keys) => {
+        if (typeof browser !== 'undefined') {
+          return browser.storage.local.get(keys);
+        }
+        return new Promise(resolve => chrome.storage.local.get(keys, resolve));
+      }
+    }
+  }
+};
+
+// State storage for all tabs
 const activeRotations = {};
 
+// Handle messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const tabId = message.tabId || sender.tab?.id;
 
   switch (message.type) {
     case "getState":
-      sendResponse(activeRotations[tabId] || {
-        isRotating: false,
-        urls: [],
-        minTime: 60,
-        maxTime: 90
+      browserAPI.storage.local.get('savedUrls').then(storage => {
+        const tabState = activeRotations[tabId] || {
+          isRotating: false,
+          urls: [],
+          minTime: 60,
+          maxTime: 90
+        };
+        sendResponse({
+          ...tabState,
+          savedUrls: storage.savedUrls || []
+        });
       });
-      break;
+      return true; // Indicate async response
 
     case "start":
       if (!activeRotations[tabId]) {
@@ -22,19 +70,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           maxTime: message.maxTime,
           timeoutId: null
         };
+        
         startRotation(tabId);
       }
+      sendResponse({ success: true });
       break;
 
     case "stop":
       if (activeRotations[tabId]) {
-        clearTimeout(activeRotations[tabId].timeoutId);
-        delete activeRotations[tabId];
+        stopRotation(tabId);
       }
+      sendResponse({ success: true });
       break;
-  }
 
-  return true; // Keep the message channel open for async response
+    case "saveUrls":
+      browserAPI.storage.local.set({ savedUrls: message.urls }).then(() => {
+        sendResponse({ success: true });
+      });
+      return true; // Indicate async response
+  }
 });
 
 function startRotation(tabId) {
@@ -44,15 +98,25 @@ function startRotation(tabId) {
   const randomIndex = Math.floor(Math.random() * state.urls.length);
   const randomUrl = state.urls[randomIndex];
 
-  chrome.tabs.update(tabId, { url: randomUrl }, () => {
-    const delay = (Math.floor(Math.random() * (state.maxTime - state.minTime + 1)) + state.minTime) * 1000;
-    activeRotations[tabId].timeoutId = setTimeout(() => startRotation(tabId), delay);
-  });
+  browserAPI.tabs.update(tabId, { url: randomUrl }).then(() => {
+    const min = state.minTime;
+    const max = state.maxTime;
+    const delay = (Math.floor(Math.random() * (max - min + 1)) + min) * 1000;
+    
+    state.timeoutId = setTimeout(() => startRotation(tabId), delay);
+  }).catch(() => stopRotation(tabId));
 }
 
-chrome.tabs.onRemoved.addListener((closedTabId) => {
+function stopRotation(tabId) {
+  if (activeRotations[tabId]) {
+    clearTimeout(activeRotations[tabId].timeoutId);
+    delete activeRotations[tabId];
+  }
+}
+
+// Clean up when tabs close
+browserAPI.tabs.onRemoved.addListener((closedTabId) => {
   if (activeRotations[closedTabId]) {
-    clearTimeout(activeRotations[closedTabId].timeoutId);
-    delete activeRotations[closedTabId];
+    stopRotation(closedTabId);
   }
 });

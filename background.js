@@ -103,14 +103,25 @@ function startRotation(tabId) {
     const max = state.maxTime;
     const delay = (Math.floor(Math.random() * (max - min + 1)) + min) * 1000;
     
-    state.timeoutId = setTimeout(() => startRotation(tabId), delay);
+    if (state.timeoutId) {
+      clearTimeout(state.timeoutId);
+    }
+    
+    state.timeoutId = setTimeout(() => {
+      if (activeRotations[tabId] && activeRotations[tabId].isRotating) {
+        startRotation(tabId);
+      }
+    }, delay);
+
   }).catch(() => stopRotation(tabId));
 }
 
 function stopRotation(tabId) {
   if (activeRotations[tabId]) {
     clearTimeout(activeRotations[tabId].timeoutId);
+    activeRotations[tabId].timeoutId = null;
     delete activeRotations[tabId];
+
   }
 }
 

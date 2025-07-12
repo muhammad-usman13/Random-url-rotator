@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Random URL Rotator",
-  "version": "2.0",
-  "description": "Enhanced URL rotator with presets, validation, and statistics. Switches tabs through curated URL lists automatically.",
+  "version": "2.1",
+  "description": "Memory-efficient URL rotator with smart cleanup, validation, and professional monitoring features.",
   "permissions": ["storage", "tabs", "alarms", "contextMenus"],
   "background": {
     "service_worker": "background.js"

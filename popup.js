@@ -61,7 +61,16 @@ function isValidUrl(string) {
 // Update URL count and validation
 function updateUrlInfo() {
   const urls = textarea.value.split('\n').map(url => url.trim()).filter(url => url !== '');
-  urlCountElement.textContent = `${urls.length} URL${urls.length !== 1 ? 's' : ''}`;
+  const MAX_URLS = 100;
+  
+  // Memory efficiency warning
+  if (urls.length > MAX_URLS) {
+    urlCountElement.textContent = `${urls.length} URLs (⚠️ Max: ${MAX_URLS})`;
+    urlCountElement.style.color = '#ea4335';
+  } else {
+    urlCountElement.textContent = `${urls.length} URL${urls.length !== 1 ? 's' : ''}`;
+    urlCountElement.style.color = '';
+  }
   
   if (urls.length > 0) {
     const validUrls = urls.filter(isValidUrl);
@@ -182,6 +191,13 @@ startButton.addEventListener('click', () => {
   const urls = textarea.value.split('\n').map(url => url.trim()).filter(url => url !== '');
   const minTime = parseInt(minTimeInput.value);
   const maxTime = parseInt(maxTimeInput.value);
+
+  // Memory efficiency: Limit URL count
+  const MAX_URLS = 100;
+  if (urls.length > MAX_URLS) {
+    updateStatus(`❌ Too many URLs! Maximum ${MAX_URLS} allowed (you have ${urls.length})`, 'error');
+    return;
+  }
 
   // Enhanced validation
   if (urls.length === 0) {

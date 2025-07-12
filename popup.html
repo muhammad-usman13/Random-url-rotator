@@ -4,36 +4,309 @@
   <meta charset="UTF-8">
   <title>Random URL Rotator</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 10px; width: 300px; }
-    textarea { width: 100%; height: 100px; box-sizing: border-box; margin-bottom: 10px; }
-    .time-range { display: flex; justify-content: space-between; margin-bottom: 10px; }
-    .time-input { width: 45%; }
-    .time-input input { width: 100%; box-sizing: border-box; }
-    .button-group { display: flex; justify-content: space-between; margin-top: 10px; }
-    .button-group button { width: 30%; }
-    p { margin: 5px 0; }
+    :root {
+      --primary-color: #4285f4;
+      --secondary-color: #34a853;
+      --danger-color: #ea4335;
+      --warning-color: #fbbc04;
+      --text-color: #202124;
+      --border-color: #dadce0;
+      --bg-color: #ffffff;
+      --hover-bg: #f8f9fa;
+    }
+
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      padding: 15px; 
+      width: 350px; 
+      margin: 0;
+      background: var(--bg-color);
+      color: var(--text-color);
+    }
+
+    h2 {
+      margin: 0 0 15px 0;
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--primary-color);
+    }
+
+    .url-section {
+      margin-bottom: 15px;
+    }
+
+    .url-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .url-header label {
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    .url-count {
+      font-size: 12px;
+      color: #5f6368;
+      background: var(--hover-bg);
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+
+    textarea { 
+      width: 100%; 
+      height: 120px; 
+      box-sizing: border-box; 
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      resize: vertical;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+
+    textarea:disabled {
+      background-color: var(--hover-bg);
+      color: #5f6368;
+    }
+
+    .time-range { 
+      display: flex; 
+      gap: 10px; 
+      margin-bottom: 15px;
+      background: var(--hover-bg);
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .time-input { 
+      flex: 1;
+    }
+
+    .time-input label { 
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      color: #5f6368;
+    }
+
+    .time-input input { 
+      width: 100%; 
+      box-sizing: border-box;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 14px;
+    }
+
+    .time-input input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+
+    .button-group { 
+      display: flex; 
+      gap: 8px; 
+      margin-bottom: 15px;
+    }
+
+    button { 
+      flex: 1;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #start {
+      background: var(--secondary-color);
+      color: white;
+    }
+
+    #start:hover:not(:disabled) {
+      background: #2e7d32;
+    }
+
+    #stop {
+      background: var(--danger-color);
+      color: white;
+    }
+
+    #stop:hover:not(:disabled) {
+      background: #c62828;
+    }
+
+    #save {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    #save:hover:not(:disabled) {
+      background: #1565c0;
+    }
+
+    .status-section {
+      margin-top: 10px;
+    }
+
+    #status {
+      margin: 0;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      text-align: center;
+      transition: all 0.3s;
+    }
+
+    .status-active {
+      background: #e8f5e8;
+      color: var(--secondary-color);
+      border: 1px solid #c8e6c9;
+    }
+
+    .status-stopped {
+      background: #f3e5f5;
+      color: #7b1fa2;
+      border: 1px solid #ce93d8;
+    }
+
+    .status-error {
+      background: #ffebee;
+      color: var(--danger-color);
+      border: 1px solid #ffcdd2;
+    }
+
+    .next-rotation {
+      font-size: 11px;
+      color: #5f6368;
+      margin-top: 5px;
+      text-align: center;
+    }
+
+    .presets {
+      margin-bottom: 10px;
+    }
+
+    .presets label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #5f6368;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .preset-buttons {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .preset-btn {
+      background: var(--hover-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .preset-btn:hover {
+      background: var(--border-color);
+    }
+
+    .url-validation {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 5px;
+    }
+
+    .validation-icon {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .validation-valid {
+      background: var(--secondary-color);
+    }
+
+    .validation-invalid {
+      background: var(--danger-color);
+    }
+
+    .validation-text {
+      font-size: 11px;
+      color: #5f6368;
+    }
   </style>
 </head>
 <body>
-  <h2>Random URL Rotator</h2>
-  <p>Enter URLs (one per line):</p>
-  <textarea id="urls"></textarea>
+  <h2>🔄 Random URL Rotator</h2>
+  
+  <div class="presets">
+    <label>Quick Presets:</label>
+    <div class="preset-buttons">
+      <button class="preset-btn" data-preset="news">📰 News</button>
+      <button class="preset-btn" data-preset="social">📱 Social</button>
+      <button class="preset-btn" data-preset="tech">💻 Tech</button>
+      <button class="preset-btn" data-preset="custom">➕ Custom</button>
+    </div>
+  </div>
+
+  <div class="url-section">
+    <div class="url-header">
+      <label for="urls">Enter URLs (one per line):</label>
+      <span class="url-count" id="urlCount">0 URLs</span>
+    </div>
+    <textarea id="urls" placeholder="https://example1.com&#10;https://example2.com&#10;https://example3.com"></textarea>
+    <div class="url-validation" id="urlValidation" style="display: none;">
+      <div class="validation-icon" id="validationIcon"></div>
+      <span class="validation-text" id="validationText"></span>
+    </div>
+  </div>
+
   <div class="time-range">
     <div class="time-input">
-      <label>Min seconds:</label>
-      <input type="number" id="minTime" min="1" value="60">
+      <label for="minTime">Min seconds:</label>
+      <input type="number" id="minTime" min="5" max="3600" value="60">
     </div>
     <div class="time-input">
-      <label>Max seconds:</label>
-      <input type="number" id="maxTime" min="1" value="90">
+      <label for="maxTime">Max seconds:</label>
+      <input type="number" id="maxTime" min="5" max="3600" value="90">
     </div>
   </div>
+
   <div class="button-group">
-    <button id="start">Start Rotation</button>
-    <button id="stop" disabled>Stop Rotation</button>
-    <button id="save">Save URLs</button>
+    <button id="start">▶ Start</button>
+    <button id="stop" disabled>⏹ Stop</button>
+    <button id="save">💾 Save</button>
   </div>
-  <p id="status"></p>
+
+  <div class="status-section">
+    <p id="status"></p>
+    <div class="next-rotation" id="nextRotation" style="display: none;"></div>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>
